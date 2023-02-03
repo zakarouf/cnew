@@ -51,6 +51,7 @@ make_lib_header() {
     $(find "./src/lib" -name '*.h' | cpio -pdm ./build/include)
     $(rm -rf ./build/$name)
     $(mv ./build/include/src/lib ./build/include/$name)
+    $(rm -rf ./build/include/src)
     echo "Made headers as $name in ./build/include"
 }
 

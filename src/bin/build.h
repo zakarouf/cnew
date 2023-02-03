@@ -57,6 +57,7 @@
 "    $(find \"./src/lib\" -name '*.h' | cpio -pdm ./build/include)\n"\
 "    $(rm -rf ./build/$name)\n"\
 "    $(mv ./build/include/src/lib ./build/include/$name)\n"\
+"    $(rm -rf ./build/include/src)\n"\
 "    echo \"Made headers as $name in ./build/include\"\n"\
 "}\n"\
 "\n"\

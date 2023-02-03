@@ -8,7 +8,7 @@
 #include <z_/imp/argparse.h>
 #include <z_/imp/sys.h>
 
-#include "make.h"
+#include "build.h"
 
 typedef struct {
     z__String
@@ -25,15 +25,15 @@ typedef struct {
     , install_path_bin
     , install_path_lib
     , install_path_inc
-    , make
+    , build_script
     ;
-} makeConfig;
+} buildConfig;
 
-z__String generate_make(makeConfig cfg) {
+z__String generate_make(buildConfig cfg) {
     char const *temp = TEMPLATE_FMT;
-    if(cfg.make.lenUsed > 0) temp = cfg.make.data;
+    if(cfg.build_script.lenUsed > 0) temp = cfg.build_script.data;
 
-    z__String make = z__String_newFrom(
+    return z__String_newFrom(
         temp,
 
         cfg.project_name.data,
@@ -54,8 +54,6 @@ z__String generate_make(makeConfig cfg) {
         cfg.install_path_lib.data,
         cfg.install_path_inc.data
     );
-
-    return make;
 }
 
 #define FILE_TEMP_BIN_MAIN \
@@ -69,7 +67,7 @@ z__String generate_make(makeConfig cfg) {
     "    return 0;\n"\
     "}\n"
 
-int cnew(char *const name, makeConfig conf)
+int cnew(char *const name, buildConfig conf)
 {
     z__String str = z__String_new(128);
     #define rp(fmt, ...) z__String_replace(&str, fmt,##__VA_ARGS__)
@@ -84,14 +82,16 @@ int cnew(char *const name, makeConfig conf)
     run("mkdir %s/examples", name);
 
     z__String_replace(&str, "lib%s.a", name);
-    z__String make = generate_make(conf);
+    z__String build = generate_make(conf);
 
-    rp("%s/make", name);
+    rp("%s/build.sh", name);
 
     FILE *fp = fopen(str.data, "w");
     if(fp == NULL) return -1;
-    fwrite(make.data, make.lenUsed, sizeof(*make.data), fp);
+    fwrite(build.data, build.lenUsed, sizeof(*build.data), fp);
     fclose(fp);
+
+    run("chmod +x %s/build.sh", name);
 
     rp("%s/src/bin/main.c", name);
     fp = fopen(str.data, "w");
@@ -106,15 +106,15 @@ int cnew(char *const name, makeConfig conf)
     fwrite(str.data, str.lenUsed, 1, fp);
     fclose(fp);
 
-    z__String_delete(&make);
+    z__String_delete(&build);
     z__String_delete(&str);
     return 0;
 }
 
-makeConfig argparse(int argc, char const *argv[])
+buildConfig argparse(int argc, char const *argv[])
 {
     #define x(x) (x, sizeof(x)-1)
-    makeConfig conf = {
+    buildConfig conf = {
           .cc = z__String_newFromStr("gcc", 3)
         , .testflags = z__String_new(16)
         , .project_name = z__String_new(16)
@@ -128,7 +128,7 @@ makeConfig argparse(int argc, char const *argv[])
         , .install_path_bin = z__String_newFrom("/usr/local/bin/")
         , .install_path_lib = z__String_newFrom("/usr/local/lib/")
         , .install_path_inc = z__String_newFrom("/usr/local/include/")
-        , .make = {0}
+        , .build_script = {0}
     };
     #define set(what) \
         z__argp_next();\
@@ -168,7 +168,7 @@ makeConfig argparse(int argc, char const *argv[])
         z__argp_elifarg_custom(("--temp", 6)) {
             z__argp_next();
             char const *name = z__argp_get();
-            conf.make = z__String_newFromFile(name);
+            conf.build_script = z__String_newFromFile(name);
         }
         else {
             if(conf.project_name.lenUsed == 0) {
